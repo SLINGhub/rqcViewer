@@ -1,3 +1,4 @@
+options(shiny.maxRequestSize=50*1024^2)
 
 # Define server logic required to draw a histogram
 library(shiny)
@@ -7,6 +8,9 @@ library(writexl)
 library(ggplot2)
 library(gridExtra)
 library(midar)
+library(tidyverse)
+library(dplyr)
+library(stringr)
 
 server <- function(input, output) {
   data <- reactive({
@@ -16,20 +20,26 @@ server <- function(input, output) {
     mexp <- MidarExperiment()
 
     if (input$data_type == "mh_quant") {
-
       # Load data
       mexp <- midar::import_masshunter(mexp, path = input$datafile_path$datapath)
-
     } else if (input$data_type == "mrmkit"){
-
       # Load data
       mexp <- midar::import_mrmkit(mexp, path = input$datafile_path$datapath)
-
     }
+
+    mexp@dataset_orig
   })
 
   output$table <- renderRHandsontable({
-    rhandsontable(data())
+
+    data_sub <- data() |>
+      distinct(raw_data_filename) |>
+      mutate(is_rqc = str_detect(raw_data_filename, "RQC"),
+             rqc_series_id = NA_character_,
+             relative_sample_amount = NA_real_) |>
+      select(raw_data_filename, is_rqc, rqc_series_id, relative_sample_amount)
+
+    rhandsontable(data_sub)
   })
 
   filtered_data <- reactive({
