@@ -6,14 +6,25 @@ library(readxl)
 library(writexl)
 library(ggplot2)
 library(gridExtra)
+library(midar)
 
 server <- function(input, output) {
   data <- reactive({
-    req(input$file1)
-    if (input$data_type == "csv") {
-      read.csv(input$file1$datapath)
-    } else {
-      read_excel(input$file1$datapath)
+    req(input$datafile_path)
+
+   # Create a MidarExperiment object (S4)
+    mexp <- MidarExperiment()
+
+    if (input$data_type == "mh_quant") {
+
+      # Load data
+      mexp <- midar::import_masshunter(mexp, path = input$datafile_path$datapath)
+
+    } else if (input$data_type == "mrmkit"){
+
+      # Load data
+      mexp <- midar::import_mrmkit(mexp, path = input$datafile_path$datapath)
+
     }
   })
 
@@ -55,4 +66,4 @@ server <- function(input, output) {
   )
 }
 
-shinyApp(ui = ui, server = server)
+
