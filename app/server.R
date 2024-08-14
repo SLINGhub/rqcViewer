@@ -32,30 +32,34 @@ server <- function(input, output) {
 
   output$table <- renderRHandsontable({
 
+    #todo: add acquisition_time_stamp and inj_volume
     data_sub <- data() |>
-      distinct(raw_data_filename) |>
+      select(raw_data_filename, sample_name) |>
+      distinct(raw_data_filename, sample_name, .keep_all = FALSE) |>
       mutate(is_rqc = str_detect(raw_data_filename, "RQC"),
              rqc_series_id = NA_character_,
-             relative_sample_amount = NA_real_) |>
-      select(raw_data_filename, is_rqc, rqc_series_id, relative_sample_amount)
+             relative_sample_amount = NA_real_)
 
-    rhandsontable(data_sub)
+    #todo: define acquisition_time_stamp type
+    rhandsontable(data_sub) |>
+      # hot_col("acquisition_time_stamp", dateFormat = "%Y-%m-%d %H:%M:%S", type = "date") |>
+      hot_cols(columnSorting = TRUE)
   })
 
-  filtered_data <- reactive({
+  user_annotated_tbl <- reactive({
     hot_to_r(input$table)
   })
 
   output$filtered_table <- renderTable({
-    filtered_data()
+    user_annotated_tbl() |> dplyr::filter(is_rqc)
   })
 
   output$download_pdf <- downloadHandler(
-    filename = function() { "filtered_data.pdf" },
+    filename = function() { "user_annotated_tbl.pdf" },
     content = function(file) {
       pdf(file)
       plots <- list()
-      df <- filtered_data()
+      df <- user_annotated_tbl()
 
       for (i in 1:nrow(df)) {
         p <- ggplot(df[i, , drop = FALSE], aes_string(x = names(df)[1], y = names(df)[2])) +
@@ -69,9 +73,9 @@ server <- function(input, output) {
   )
 
   output$download_excel <- downloadHandler(
-    filename = function() { "filtered_data.xlsx" },
+    filename = function() { "user_annotated_tbl.xlsx" },
     content = function(file) {
-      write_xlsx(filtered_data(), file)
+      write_xlsx(user_annotated_tbl(), file)
     }
   )
 }
