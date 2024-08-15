@@ -1,4 +1,5 @@
 options(shiny.maxRequestSize=50*1024^2)
+# remotes::install_github("SLINGhub/midar@development")
 
 # Define server logic required to draw a histogram
 library(shiny)

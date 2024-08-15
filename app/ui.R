@@ -16,8 +16,14 @@ ui <- fluidPage(
     ),
 
     mainPanel(
-      rHandsontableOutput("table"),
-      tableOutput("filtered_table")
+
+      # Create the tabset panel
+      tabsetPanel(
+        tabPanel("Table",
+                 rHandsontableOutput("table")),
+        tabPanel("Filtered table",
+                 tableOutput("filtered_table"))
+        )
     )
   )
 )
