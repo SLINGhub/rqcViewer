@@ -1,4 +1,5 @@
 library(shiny)
+library(shinyjs)
 library(rhandsontable)
 
 ui <- fluidPage(
@@ -16,15 +17,20 @@ ui <- fluidPage(
     ),
 
     mainPanel(
-
-      # Create the tabset panel
       tabsetPanel(
-        tabPanel("Table",
-                 rHandsontableOutput("table")),
-        tabPanel("Filtered table",
-                 tableOutput("filtered_table"))
-        )
+        tabPanel("Table", rHandsontableOutput("table")),
+        tabPanel("Filtered table", tableOutput("filtered_table"))
+      )
     )
-  )
-)
+  ),
 
+  # Popup window with spinning wheel
+  div(id = "popup",
+      style = "display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; text-align: center; padding-top: 20%;",
+      div(style = "background: white; padding: 20px; border-radius: 10px;",
+          p("Processing, please wait...")
+      )
+  ),
+
+  useShinyjs()  # Initialize shinyjs for showing/hiding the spinner
+)

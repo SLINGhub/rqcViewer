@@ -1,10 +1,7 @@
-options(shiny.maxRequestSize=50*1024^2)
-# remotes::install_github("SLINGhub/midar@development")
+options(shiny.maxRequestSize = 50 * 1024^2)  # Increase file upload size limit
 
-# Define server logic required to draw a histogram
 library(shiny)
 library(rhandsontable)
-library(readxl)
 library(writexl)
 library(ggplot2)
 library(gridExtra)
@@ -13,23 +10,22 @@ library(tidyverse)
 library(dplyr)
 library(stringr)
 library(DataEditR)
+library(shinyjs)
 
-server <- function(input, output) {
+server <- function(input, output, session) {
+
   data <- reactive({
     req(input$datafile_path)
 
-   # Create a MidarExperiment object (S4)
+    # Create a MidarExperiment object (S4)
     mexp <- MidarExperiment()
 
     if (input$data_type == "mh_quant") {
-      # Load data
       mexp <- midar::rawdata_import_agilent(mexp, path = input$datafile_path$datapath, file_format = "csv")
-    } else if (input$data_type == "mrmkit"){
-      # Load data
+    } else if (input$data_type == "mrmkit") {
       mexp <- midar::import_mrmkit(mexp, path = input$datafile_path$datapath)
     }
 
-    # Obtain basic/available metadata from data
     mexp <- midar::metadata_from_data(mexp)
     mexp
   })
@@ -58,33 +54,61 @@ server <- function(input, output) {
     user_annotated_tbl() |> dplyr::filter(is_rqc)
   })
 
+  # Function to generate the plot and save it to a temporary file
+  generate_plot_pdf <- function() {
+    temp_file <- tempfile(fileext = ".pdf")
+
+    mexp <- data()
+    annot <- user_annotated_tbl()
+    annot <- annot |>
+      dplyr::filter(is_rqc) |>
+      rename(analysis_id = raw_data_filename)
+
+    metadata_responsecurves(mexp) <- as_tibble(annot)
+
+    plot_responsecurves(data = mexp,
+                        use_filt_data = FALSE,
+                        output_pdf = TRUE,
+                        path = temp_file)
+
+    temp_file
+  }
+
   output$download_pdf <- downloadHandler(
-    filename = function() { "response_curve.pdf" },
+    filename = function() {
+      paste("plot", Sys.Date(), ".pdf", sep = "")
+    },
+
     content = function(file) {
+      # Show spinner
+      shinyjs::show("popup")
 
-      mexp <- data()
+      # Generate the plot and save to a temporary file
+      plot_file <- generate_plot_pdf()
 
-      annot <- user_annotated_tbl()
+      # Copy the plot to the final location
+      file.copy(plot_file, file, overwrite = TRUE)
 
-      annot <- annot |>
-        dplyr::filter(is_rqc) |>
-        rename(analysis_id = raw_data_filename)
-
-      metadata_responsecurves(mexp) <- as_tibble(annot)
-
-      plot_responsecurves(data = mexp,
-                          use_filt_data = FALSE,
-                          output_pdf = TRUE,
-                          path = file)
+      # Hide spinner
+      shinyjs::hide("popup")
     }
   )
 
+  #table output
   output$download_excel <- downloadHandler(
-    filename = function() { "user_annotated_tbl.xlsx" },
+    filename = function() {
+      "user_annotated_tbl.xlsx"
+    },
+
     content = function(file) {
+      # Show spinner
+      shinyjs::show("popup")
+
+      # Write the table to an Excel file
       write_xlsx(user_annotated_tbl(), file)
+
+      # Hide spinner
+      shinyjs::hide("popup")
     }
   )
 }
-
-
