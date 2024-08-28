@@ -1,5 +1,5 @@
 options(shiny.maxRequestSize = 50 * 1024^2)  # Increase file upload size limit
-
+#remotes::install_github("SLINGhub/midar@development")
 library(shiny)
 library(rhandsontable)
 library(writexl)
@@ -30,13 +30,14 @@ server <- function(input, output, session) {
     mexp
   })
 
-  output$table <- renderRHandsontable({
 
+  # Initialize and render the editable rhandsontable
+  output$table <- renderRHandsontable({
     #todo: add acquisition_time_stamp and inj_volume
     data_select <- data()@dataset_orig |>
       select(raw_data_filename, sample_name) |>
       distinct(raw_data_filename, sample_name, .keep_all = FALSE) |>
-      mutate(is_rqc = str_detect(raw_data_filename, "RQC"),
+      mutate(is_selected = FALSE,
              rqc_series_id = NA_character_,
              relative_sample_amount = NA_real_)
 
@@ -46,69 +47,70 @@ server <- function(input, output, session) {
       hot_cols(columnSorting = TRUE)
   })
 
+  # Capture the table edited by the user
   user_annotated_tbl <- reactive({
     hot_to_r(input$table)
   })
 
+  # Render the filtered table based on user edits and selection
   output$filtered_table <- renderTable({
-    user_annotated_tbl() |> dplyr::filter(is_rqc)
+    user_annotated_tbl() |> dplyr::filter(is_selected)
   })
 
-  # Function to generate the plot and save it to a temporary file
-  generate_plot_pdf <- function() {
-    temp_file <- tempfile(fileext = ".pdf")
+  # Handle the filtering logic
+  observeEvent(input$apply_filter, {
+    filter_terms <- str_split(input$filter_text, ",")[[1]]
+    filter_terms <- str_trim(filter_terms)  # Trim whitespace
 
-    mexp <- data()
-    annot <- user_annotated_tbl()
-    annot <- annot |>
-      dplyr::filter(is_rqc) |>
-      rename(analysis_id = raw_data_filename)
+    if (length(filter_terms) > 0 && !all(is.na(filter_terms))) {
+      # Update the is_selected column based on filter
+      user_annotated_tbl() <- user_annotated_tbl() %>%
+        mutate(is_selected = sapply(raw_data_filename, function(value) any(str_detect(value, filter_terms))))
 
-    metadata_responsecurves(mexp) <- as_tibble(annot)
+      # # Update the filtered table to show the user's edited values
+      # output$filtered_table <- renderTable({
+      #   filtered_data %>%
+      #     filter(is_selected) %>%
+      #     select(raw_data_filename, sample_name, is_selected, rqc_series_id, relative_sample_amount)
+      # })
 
-    plot_responsecurves(data = mexp,
-                        use_filt_data = FALSE,
-                        output_pdf = TRUE,
-                        path = temp_file)
-
-    temp_file
-  }
-
-  output$download_pdf <- downloadHandler(
-    filename = function() {
-      paste("plot", Sys.Date(), ".pdf", sep = "")
-    },
-
-    content = function(file) {
-      # Show spinner
-      shinyjs::show("popup")
-
-      # Generate the plot and save to a temporary file
-      plot_file <- generate_plot_pdf()
-
-      # Copy the plot to the final location
-      file.copy(plot_file, file, overwrite = TRUE)
-
-      # Hide spinner
-      shinyjs::hide("popup")
+      # # Update the rhandsontable with the filtered data
+      # output$table <- renderRHandsontable({
+      #   rhandsontable(filtered_data, width = 1000, height = 600) |>
+      #     hot_cols(columnSorting = TRUE)
+      # })
     }
-  )
+  })
 
-  #table output
-  output$download_excel <- downloadHandler(
-    filename = function() {
-      "user_annotated_tbl.xlsx"
-    },
+  # Clear the filter and reset the table
+  observeEvent(input$clear_filter, {
+    updateTextInput(session, "filter_text", value = "")
 
-    content = function(file) {
-      # Show spinner
-      shinyjs::show("popup")
+    # # Reset the table to the original data
+    # output$table <- renderRHandsontable({
+    #   data()@dataset_orig |>
+    #     select(raw_data_filename, sample_name) |>
+    #     distinct(raw_data_filename, sample_name, .keep_all = FALSE) |>
+    #     mutate(is_selected = FALSE,
+    #            rqc_series_id = NA_character_,
+    #            relative_sample_amount = NA_real_) |>
+    #     rhandsontable(width = 1000, height = 600) |>
+    #     hot_cols(columnSorting = TRUE)
+    # })
 
-      # Write the table to an Excel file
-      write_xlsx(user_annotated_tbl(), file)
+    # # Capture the table edited by the user
+    # user_annotated_tbl <- reactive({
+    #   hot_to_r(input$table)
+    })
 
-      # Hide spinner
-      shinyjs::hide("popup")
-    }
-  )
+    # # Reset the filtered table as well
+    # output$filtered_table <- renderTable({
+    #   user_annotated_tbl()
+    # })
+  # })
 }
+
+
+
+
+
