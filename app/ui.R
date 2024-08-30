@@ -3,15 +3,17 @@ library(shinyjs)
 library(rhandsontable)
 
 ui <- fluidPage(
-  titlePanel("Data Upload and Filtering with Download Option"),
+  titlePanel("Response Curve Inspector (RQCsee)", windowTitle = "RQCsee"),
 
   sidebarLayout(
     sidebarPanel(
-      radioButtons("data_type", "Choose Data Type:",
-                   choices = c("MH Quant" = "mh_quant", "MRMkit" = "mrmkit")),
+      radioButtons( "data_type",
+                    "Rqw Data Source:",
+                   choices = c("MH Quant" = "mh_quant", "MRMkit" = "mrmkit"),
+                   inline=TRUE),
       fileInput("datafile_path", "Upload Data File", accept = c(".csv")),
-      numericInput("n_rows", "Number of rows per page:", 5, min = 1),
-      numericInput("n_cols", "Number of columns per page:", 4, min = 1),
+      numericInput("n_rows", "Rows per page:", 5, min = 1),
+      numericInput("n_cols", "Columns per page:", 4, min = 1),
       downloadButton("download_pdf", "Download PDF"),
       downloadButton("download_excel", "Download Excel")
     ),
