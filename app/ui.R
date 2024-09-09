@@ -25,7 +25,7 @@ ui <- fluidPage(
       ),
 
       tags$div(
-        actionButton("apply_filter", "Apply Filter"),
+        actionButton("apply_selection", "Apply Selection"),
         actionButton("clear_filter", "Unselect all"),
         style = "margin-bottom: 20px;"
       ),

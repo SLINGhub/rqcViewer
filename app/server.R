@@ -59,7 +59,7 @@ server <- function(input, output, session) {
   })
 
   # Selection logic
-  observeEvent(input$apply_filter, {
+  observeEvent(input$apply_selection, {
     # TODO: sep can be replaced by | to generate the regex directly
     filter_terms <- str_split(input$filter_text, ",", simplify = TRUE)[1,]
     filter_terms <- str_trim(filter_terms)  # Trim whitespace
@@ -67,15 +67,72 @@ server <- function(input, output, session) {
 
     if (all(filter_terms != "")) {
       # Update the is_selected column based on filter
-      rv$tbl_samples  <- rv$tbl_samples |>  mutate(is_selected = str_detect(raw_data_filename, paste(filter_terms, collapse = '|')))
+      rv$tbl_samples  <- rv$tbl_samples |>
+        mutate(is_selected = str_detect(raw_data_filename, paste(filter_terms, collapse = '|')))
     }
   })
 
   # Clear the selection
   observeEvent(input$clear_filter, {
     updateTextInput(session, "filter_text", value = "")
-    rv$tbl_samples <- rv$tbl_samples |> mutate(is_selected = FALSE)
+    rv$tbl_samples <- rv$tbl_samples |>
+      mutate(is_selected = FALSE)
   })
+
+  # Function to generate the plot and save it to a temporary file
+  generate_plot_pdf <- function() {
+    temp_file <- tempfile(fileext = ".pdf")
+
+    mexp <- data()
+    annot <- user_annotated_tbl() %>% filter(is_selected)
+    annot <- annot %>% rename(analysis_id = raw_data_filename)
+
+    metadata_responsecurves(mexp) <- as_tibble(annot)
+
+    plot_responsecurves(data = mexp,
+                        use_filt_data = FALSE,
+                        output_pdf = TRUE,
+                        path = temp_file)
+
+    temp_file
+  }
+
+  output$download_pdf <- downloadHandler(
+    filename = function() {
+      paste("plot", Sys.Date(), ".pdf", sep = "")
+    },
+
+    content = function(file) {
+      # Show spinner
+      shinyjs::show("popup")
+
+      # Generate the plot and save to a temporary file
+      plot_file <- generate_plot_pdf()
+
+      # Copy the plot to the final location
+      file.copy(plot_file, file, overwrite = TRUE)
+
+      # Hide spinner
+      shinyjs::hide("popup")
+    }
+  )
+
+  output$download_excel <- downloadHandler(
+    filename = function() {
+      "user_annotated_tbl.xlsx"
+    },
+
+    content = function(file) {
+      # Show spinner
+      shinyjs::show("popup")
+
+      # Write the table to an Excel file
+      write_xlsx(user_annotated_tbl(), file)
+
+      # Hide spinner
+      shinyjs::hide("popup")
+    }
+  )
 }
 
 
