@@ -27,14 +27,14 @@ ui <- fluidPage(
       tags$div(
         actionButton("apply_selection", "Apply Selection"),
         actionButton("clear_filter", "Unselect all"),
+        hr(),
+        actionButton("toggle_table", "Toggle Table View"),
         style = "margin-bottom: 20px;"
       ),
 
-      # Create the tabset panel
-      tabsetPanel(
-        tabPanel("Table", rHandsontableOutput("table")),
-        tabPanel("Filtered table", tableOutput("filtered_table"))
-      )
+      # Show the table
+     rHandsontableOutput("table")
+     # uiOutput("table_ui")  # Dynamically render the table
     )
   ),
 
