@@ -84,6 +84,8 @@ server <- function(input, output, session) {
 
     plot_responsecurves(data = mexp,
                         use_filt_data = FALSE,
+                        columns_page = input$n_cols,
+                        rows_page = input$n_rows,
                         output_pdf = TRUE,
                         path = temp_file)
 
