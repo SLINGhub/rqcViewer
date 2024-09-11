@@ -27,8 +27,6 @@ ui <- fluidPage(
       tags$div(
         actionButton("apply_selection", "Apply Selection"),
         actionButton("clear_filter", "Unselect all"),
-        hr(),
-        actionButton("toggle_table", "Toggle Table View"),
         style = "margin-bottom: 20px;"
       ),
 

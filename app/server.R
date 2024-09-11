@@ -14,7 +14,6 @@ server <- function(input, output, session) {
 
   rv <- reactiveValues(mexp = MidarExperiment(),
                        tbl_samples = tibble(),
-                       filtered_table = tibble(),
                        show_filtered = FALSE)
 
   observeEvent(input$datafile_path, {
@@ -38,33 +37,24 @@ server <- function(input, output, session) {
              relative_sample_amount = NA_real_)
     rv$mexp <- mxp
     rv$tbl_samples <- tbl
-    rv$filtered_table <- rv$tbl_samples |> filter(is_selected == TRUE)
   })
 
   # Initialize and render the editable rhandsontable
   output$table <- renderRHandsontable({
-    # Determine the table to display based on show_filtered
-    data_to_show <- if (rv$show_filtered) {
-      rv$tbl_samples %>% filter(is_selected)
-    } else {
-      rv$tbl_samples
-    }
-
-    rhandsontable(data_to_show, width = 1000, height = 600) %>%
+   rhandsontable(rv$tbl_samples, width = 1000, height = 600) %>%
       hot_cols(columnSorting = TRUE, manualColumnMove = TRUE, manualColumnResize = TRUE)
-  })
+     })
 
   # Capture the table edited by the user
   observeEvent(input$table, {
     rv$tbl_samples <- hot_to_r(input$table)
-  })
+ })
 
   # Selection logic
   observeEvent(input$apply_selection, {
     # TODO: sep can be replaced by | to generate the regex directly
     filter_terms <- str_split(input$filter_text, ",", simplify = TRUE)[1,]
     filter_terms <- str_trim(filter_terms)  # Trim white space
-    print(filter_terms)
 
     if (all(filter_terms != "")) {
       # Update the is_selected column based on filter
@@ -80,18 +70,15 @@ server <- function(input, output, session) {
       mutate(is_selected = FALSE)
   })
 
-  #toggle the table view
-    observeEvent(input$toggle_table, {
-    rv$show_filtered <- !rv$show_filtered
-  })
-
   # Function to generate the plot and save it to a temporary file
   generate_plot_pdf <- function() {
     temp_file <- tempfile(fileext = ".pdf")
 
     mexp <- rv$mexp
-    annot <- rv$tbl_samples %>% filter(is_selected)
-    annot <- annot %>% rename(analysis_id = raw_data_filename)
+    annot <- rv$tbl_samples |>  filter(is_selected)
+    annot <- annot |>
+      rename(analysis_id = raw_data_filename) |>
+      mutate(relative_sample_amount = relative_sample_amount / 100)
 
     metadata_responsecurves(mexp) <- as_tibble(annot)
 
