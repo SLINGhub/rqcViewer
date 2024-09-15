@@ -128,7 +128,7 @@ server <- function(input, output, session) {
     metadata_responsecurves(mexp) <- as_tibble(annot)
 
       # Write the table to an Excel file
-      table_result <- midar::get_response_curve_stats(data = rv$mexp,
+      table_result <- midar::get_response_curve_stats(data = mexp,
                                                       with_staturation_stats = FALSE,
                                                       limit_to_rqc = FALSE)
       write_xlsx(table_result, file)
