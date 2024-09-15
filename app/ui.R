@@ -11,7 +11,7 @@ ui <- fluidPage(
                     "Rqw Data Source:",
                    choices = c("MH Quant" = "mh_quant", "MRMkit" = "mrmkit"),
                    inline=TRUE),
-      fileInput("datafile_path", "Upload Data File", accept = c(".csv")),
+      fileInput("datafile_path", "Upload Data File", accept = c(".csv", ".tsv")),
       numericInput("n_rows", "Rows per page:", 5, min = 1),
       numericInput("n_cols", "Columns per page:", 4, min = 1),
       downloadButton("download_pdf", "Download PDF"),

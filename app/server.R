@@ -18,24 +18,22 @@ server <- function(input, output, session) {
 
   observeEvent(input$datafile_path, {
     # Create a MidarExperiment object (S4)
-    mxp <- MidarExperiment()
+    mexp_temp <- MidarExperiment()
 
     if (input$data_type == "mh_quant") {
-      mxp <- midar::rawdata_import_agilent(mxp, path = input$datafile_path$datapath, file_format = "csv")
+      mexp_temp <- midar::rawdata_import_agilent(mexp_temp, path = input$datafile_path$datapath, file_format = "csv")
     } else if (input$data_type == "mrmkit") {
-      mxp <- midar::import_mrmkit(mxp, path = input$datafile_path$datapath)
+      mexp_temp <- midar::rawdata_import_mrmkit(mexp_temp, path = input$datafile_path$datapath, use_metadata = TRUE)
     }
 
-    mxp <- midar::metadata_from_data(mxp)
-
     #todo: add acquisition_time_stamp and inj_volume
-    tbl <- mxp@dataset_orig |>
-      select(raw_data_filename, sample_name) |>
-      distinct(raw_data_filename, sample_name, .keep_all = FALSE) |>
+    tbl <- mexp_temp@dataset_orig |>
+      select(analysis_id, any_of("sample_name")) |>
+      distinct(analysis_id, .keep_all = FALSE) |>
       mutate(is_selected = FALSE,
              rqc_series_id = NA_character_,
              relative_sample_amount = NA_real_)
-    rv$mexp <- mxp
+    rv$mexp <- mexp_temp
     rv$tbl_samples <- tbl
   })
 
@@ -59,7 +57,7 @@ server <- function(input, output, session) {
     if (all(filter_terms != "")) {
       # Update the is_selected column based on filter
       rv$tbl_samples  <- rv$tbl_samples |>
-        mutate(is_selected = str_detect(raw_data_filename, paste(filter_terms, collapse = '|')))
+        mutate(is_selected = str_detect(analysis_id, paste(filter_terms, collapse = '|')))
     }
   })
 
@@ -77,7 +75,7 @@ server <- function(input, output, session) {
     mexp <- rv$mexp
     annot <- rv$tbl_samples |>  filter(is_selected)
     annot <- annot |>
-      rename(analysis_id = raw_data_filename) |>
+      rename(analysis_id = analysis_id) |>
       mutate(relative_sample_amount = relative_sample_amount / 100)
 
     metadata_responsecurves(mexp) <- as_tibble(annot)
@@ -114,15 +112,26 @@ server <- function(input, output, session) {
 
   output$download_excel <- downloadHandler(
     filename = function() {
-      "user_annotated_tbl.xlsx"
+      "RQC_stats.xlsx"
     },
 
     content = function(file) {
       # Show spinner
       shinyjs::show("popup")
 
+    mexp <- rv$mexp
+    annot <- rv$tbl_samples |>  filter(is_selected)
+    annot <- annot |>
+      rename(analysis_id = analysis_id) |>
+      mutate(relative_sample_amount = relative_sample_amount / 100)
+
+    metadata_responsecurves(mexp) <- as_tibble(annot)
+
       # Write the table to an Excel file
-      write_xlsx(user_annotated_tbl(), file)
+      table_result <- midar::get_response_curve_stats(data = rv$mexp,
+                                                      with_staturation_stats = FALSE,
+                                                      limit_to_rqc = FALSE)
+      write_xlsx(table_result, file)
 
       # Hide spinner
       shinyjs::hide("popup")
