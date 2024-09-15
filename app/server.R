@@ -132,7 +132,6 @@ server <- function(input, output, session) {
                                                       with_staturation_stats = FALSE,
                                                       limit_to_rqc = FALSE)
       write_xlsx(table_result, file)
-
       # Hide spinner
       shinyjs::hide("popup")
     }
