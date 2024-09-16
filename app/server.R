@@ -21,7 +21,7 @@ server <- function(input, output, session) {
     mexp_temp <- MidarExperiment()
 
     if (input$data_type == "mh_quant") {
-      mexp_temp <- midar::rawdata_import_agilent(mexp_temp, path = input$datafile_path$datapath, file_format = "csv")
+      mexp_temp <- midar::rawdata_import_agilent(mexp_temp, path = input$datafile_path$datapath, file_format = "csv", use_metadata = TRUE)
     } else if (input$data_type == "mrmkit") {
       mexp_temp <- midar::rawdata_import_mrmkit(mexp_temp, path = input$datafile_path$datapath, use_metadata = TRUE)
     }
