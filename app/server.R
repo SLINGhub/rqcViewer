@@ -68,19 +68,27 @@ server <- function(input, output, session) {
       mutate(is_selected = FALSE)
   })
 
-  # Function to generate the plot and save it to a temporary file
-  generate_plot_pdf <- function() {
-    temp_file <- tempfile(fileext = ".pdf")
-
-    mexp <- rv$mexp
-    annot <- rv$tbl_samples |>  filter(is_selected)
+  #add metadata for pdf and excel output ####
+  add_metadata <- function() {
+    mexp_local <- isolate(rv$mexp)
+    annot <- isolate(rv$tbl_samples) |>  filter(is_selected)
     annot <- annot |>
       rename(analysis_id = analysis_id) |>
       mutate(relative_sample_amount = relative_sample_amount / 100)
 
-    metadata_responsecurves(mexp) <- as_tibble(annot)
+    metadata_responsecurves(mexp_local) <- as_tibble(annot)
+    mexp_local
+  }
+  #finish the function of add metadata for pdf and excel output ####
 
-    plot_responsecurves(data = mexp,
+
+  # Function to generate the plot and save it to a temporary file
+  generate_plot_pdf <- function() {
+    temp_file <- tempfile(fileext = ".pdf")
+
+    mexp_local <- add_metadata()
+
+    plot_responsecurves(data = mexp_local,
                         use_filt_data = FALSE,
                         columns_page = input$n_cols,
                         rows_page = input$n_rows,
@@ -92,7 +100,7 @@ server <- function(input, output, session) {
 
   output$download_pdf <- downloadHandler(
     filename = function() {
-      paste("plot", Sys.Date(), ".pdf", sep = "")
+      paste("Response_curve_", Sys.Date(), ".pdf", sep = "")
     },
 
     content = function(file) {
@@ -112,23 +120,17 @@ server <- function(input, output, session) {
 
   output$download_excel <- downloadHandler(
     filename = function() {
-      "RQC_stats.xlsx"
+      paste("RQC_stats_", Sys.Date(), ".xlsx", sep = "")
     },
 
     content = function(file) {
       # Show spinner
       shinyjs::show("popup")
 
-    mexp <- rv$mexp
-    annot <- rv$tbl_samples |>  filter(is_selected)
-    annot <- annot |>
-      rename(analysis_id = analysis_id) |>
-      mutate(relative_sample_amount = relative_sample_amount / 100)
-
-    metadata_responsecurves(mexp) <- as_tibble(annot)
+      mexp_local <- add_metadata()
 
       # Write the table to an Excel file
-      table_result <- midar::get_response_curve_stats(data = mexp,
+      table_result <- midar::get_response_curve_stats(data = mexp_local,
                                                       with_staturation_stats = FALSE,
                                                       limit_to_rqc = FALSE)
       write_xlsx(table_result, file)
