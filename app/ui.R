@@ -8,7 +8,7 @@ ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(
       radioButtons( "data_type",
-                    "Rqw Data Source:",
+                    "Raw Data Source:",
                    choices = c("MH Quant" = "mh_quant", "MRMkit" = "mrmkit"),
                    inline=TRUE),
       fileInput("datafile_path", "Upload Data File", accept = c(".csv", ".tsv")),

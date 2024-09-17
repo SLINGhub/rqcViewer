@@ -17,25 +17,53 @@ server <- function(input, output, session) {
                        show_filtered = FALSE)
 
   observeEvent(input$datafile_path, {
-    # Create a MidarExperiment object (S4)
-    mexp_temp <- MidarExperiment()
 
-    if (input$data_type == "mh_quant") {
-      mexp_temp <- midar::rawdata_import_agilent(mexp_temp, path = input$datafile_path$datapath, file_format = "csv", use_metadata = TRUE)
-    } else if (input$data_type == "mrmkit") {
-      mexp_temp <- midar::rawdata_import_mrmkit(mexp_temp, path = input$datafile_path$datapath, use_metadata = TRUE)
+    req(input$datafile_path)
+
+    # Get the file extension
+    file_ext <- tools::file_ext(input$datafile_path$name)
+
+    # Check if the file extension matches the selected data type
+    valid_ext <- switch(input$data_type,
+                        mh_quant = "csv",
+                        mrmkit = "tsv")
+
+    if (file_ext != valid_ext) {
+      # Show an error message and reset the file input
+      showModal(modalDialog(
+        title = "Error",
+        paste("Please upload a", valid_ext, "file."),
+        easyClose = TRUE,
+        footer = NULL
+      ))
+
+      # Reset file input
+      reset("datafile_path")
+    } else {
+      # Create a MidarExperiment object (S4)
+      mexp_temp <- MidarExperiment()
+
+      if (input$data_type == "mh_quant") {
+        mexp_temp <- midar::rawdata_import_agilent(mexp_temp, path = input$datafile_path$datapath, file_format = "csv", use_metadata = TRUE)
+      } else if (input$data_type == "mrmkit") {
+         mexp_temp <- midar::rawdata_import_mrmkit(mexp_temp, path = input$datafile_path$datapath, use_metadata = TRUE)
+      }
+
+      #todo: add acquisition_time_stamp and inj_volume
+      tbl <- mexp_temp@dataset_orig |>
+        select(analysis_id, any_of("sample_name")) |>
+        distinct(analysis_id, .keep_all = FALSE) |>
+        mutate(is_selected = FALSE,
+               rqc_series_id = NA_character_,
+               relative_sample_amount = NA_real_)
+      rv$mexp <- mexp_temp
+      rv$tbl_samples <- tbl
     }
+ })
 
-    #todo: add acquisition_time_stamp and inj_volume
-    tbl <- mexp_temp@dataset_orig |>
-      select(analysis_id, any_of("sample_name")) |>
-      distinct(analysis_id, .keep_all = FALSE) |>
-      mutate(is_selected = FALSE,
-             rqc_series_id = NA_character_,
-             relative_sample_amount = NA_real_)
-    rv$mexp <- mexp_temp
-    rv$tbl_samples <- tbl
-  })
+
+
+
 
   # Initialize and render the editable rhandsontable
   output$table <- renderRHandsontable({
