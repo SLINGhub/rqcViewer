@@ -10,12 +10,15 @@ library(tidyverse)
 library(dplyr)
 library(stringr)
 library(shinyjs)
+library(shinyWidgets)
 
 server <- function(input, output, session) {
 
-  rv <- reactiveValues(mexp = MidarExperiment(),
+    rv <- reactiveValues(mexp = MidarExperiment(),
                        tbl_samples = tibble(),
-                       show_filtered = FALSE)
+                       show_filtered = FALSE,
+                       plots = NULL,
+                       stats_table = tibble())
 
   observeEvent(input$datafile_path, {
 
@@ -120,19 +123,22 @@ server <- function(input, output, session) {
 
 
   # Function to generate the plot and save it to a temporary file
-  generate_plot_pdf <- function() {
+  generate_plots <- function(as_pdf, return_plots) {
     temp_file <- tempfile(fileext = ".pdf")
 
+    print("generate_plots")
     mexp_local <- add_metadata()
 
-    plot_responsecurves(data = mexp_local,
+    plts <- plot_responsecurves(data = mexp_local,
+                        return_plot_list = return_plots,
                         use_filt_data = FALSE,
                         columns_page = input$n_cols,
-                        rows_page = input$n_rows,
-                        output_pdf = TRUE,
+                        rows_page = input$n_rows,point_size = 4, line_width = 1.6, text_scale_factor = 2,  base_size = 10,
+                        output_pdf = as_pdf,
                         path = temp_file)
 
-    temp_file
+    #print(str(plts$plt))
+    plts$plt
   }
 
   output$download_pdf <- downloadHandler(
@@ -145,7 +151,7 @@ server <- function(input, output, session) {
       shinyjs::show("popup")
 
       # Generate the plot and save to a temporary file
-      plot_file <- generate_plot_pdf()
+      plot_file <- generate_plots(as_pdf = TRUE, return_plots = FALSE)
 
       # Copy the plot to the final location
       file.copy(plot_file, file, overwrite = TRUE)
@@ -170,14 +176,49 @@ server <- function(input, output, session) {
       table_result <- midar::get_response_curve_stats(data = mexp_local,
                                                       with_staturation_stats = FALSE,
                                                       limit_to_rqc = FALSE)
+
       write_xlsx(table_result, file)
       # Hide spinner
       shinyjs::hide("popup")
     }
   )
+
+  output$plot_rqc <- renderPlot({
+    req(rv$plots)
+    print("plot_curves")
+    print(rv$plots[[as.numeric(input$select_page)]])
+
+  })
+
+  output$stats_table <- renderTable({
+    req(rv$stats_table)
+    rv$stats_table
+
+  })
+
+  observeEvent(input$get_plots, {
+    print("generate_plots")
+    #shinyjs::show("popup")
+    plts <- generate_plots(as_pdf = TRUE, return_plots = TRUE)
+    rv$plots <- plts
+    #shinyjs::hide("popup")
+  })
+
+  observeEvent(input$get_stats, {
+    print("get_stats")
+
+    mexp_local <- add_metadata()
+
+    # Write the table to an Excel file
+    table_result <- midar::get_response_curve_stats(data = mexp_local,
+                                                    with_staturation_stats = FALSE,
+                                                    limit_to_rqc = FALSE)
+
+    rv$stats_table <- table_result
+    #shinyjs::hide("popup")
+  })
+
 }
-
-
 
 
 
