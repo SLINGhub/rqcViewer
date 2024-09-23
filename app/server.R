@@ -1,5 +1,6 @@
 options(shiny.maxRequestSize = 50 * 1024^2)  # Increase file upload size limit
 #remotes::install_github("SLINGhub/midar@development")
+#shiny::runGitHub("SLINGhub/RQCviewer", subdir = "app")
 library(shiny)
 library(rhandsontable)
 library(writexl)
@@ -61,10 +62,6 @@ server <- function(input, output, session) {
     }
  })
 
-
-
-
-
   # Initialize and render the editable rhandsontable
   output$table <- renderRHandsontable({
    rhandsontable(rv$tbl_samples, width = 1000, height = 600) %>%
@@ -100,12 +97,24 @@ server <- function(input, output, session) {
   add_metadata <- function() {
     mexp_local <- isolate(rv$mexp)
     annot <- isolate(rv$tbl_samples) |>  filter(is_selected)
-    annot <- annot |>
+
+    # Check for missing values
+    if (any(is.na(annot))) {
+      showModal(modalDialog(
+        title = "Error",
+        "Invalid data: Missing values detected.",
+        easyClose = TRUE,
+        footer = NULL
+      ))
+      return(NULL)
+    } else {
+      annot <- annot |>
       rename(analysis_id = analysis_id) |>
       mutate(relative_sample_amount = relative_sample_amount / 100)
 
-    metadata_responsecurves(mexp_local) <- as_tibble(annot)
-    mexp_local
+      metadata_responsecurves(mexp_local) <- as_tibble(annot)
+      mexp_local
+    }
   }
   #finish the function of add metadata for pdf and excel output ####
 
